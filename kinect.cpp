@@ -54,10 +54,25 @@ void CallBackFunc(int event, int x, int y, int flags, void* params)
 int MenuSelect()
 {
         int menu_item;
+        std::cout << "#################"<<std::endl;
         std::cout << "1) Camara output"<<std::endl;
         std::cout << "2) Calibration"<<std::endl;
+        std::cout << "3) End program"<<std::endl;
+        std::cout << "#################"<<std::endl;
         std::cin >> menu_item;
         return menu_item;
+}
+
+void KeyOptions()
+{
+        std::cout << "#############################################"<<std::endl;
+        std::cout << "'s' Depth with RGB alignment"<<std::endl;
+        std::cout << "'d' Draw RGB & IR chessboard lines"<<std::endl;
+        std::cout << "'f' Save RGB & IR frame"<<std::endl;
+        std::cout << "'c' Apply to RGB & IR calibration parameters"<<std::endl;
+        std::cout << "'other key' Reset to default"<<std::endl;
+        std::cout << "'esc' End frame stream"<<std::endl;
+        std::cout << "#############################################"<<std::endl;
 }
 
 static void calcChessboardCorners(Size boardSize, float squareSize, std::vector<cv::Point3f>& corners)
@@ -177,6 +192,7 @@ int main(int argc, char *argv[])
                                 std::stringstream RGBimgs;
                                 std::stringstream IRimgs;
 
+                                KeyOptions();
                                 do{
                                         key_press_buffer = cv::waitKey(1) & 0xEFFFFF;
                                         key_press = (key_press_buffer != 0xEFFFFF)?key_press_buffer : key_press;
