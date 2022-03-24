@@ -1,0 +1,3 @@
+/home/fernando/Kinect/CMakeFiles/edit_cache.dir
+/home/fernando/Kinect/CMakeFiles/rebuild_cache.dir
+/home/fernando/Kinect/CMakeFiles/kinect.dir
