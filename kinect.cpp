@@ -29,11 +29,11 @@ void CallBackFunc(int event, int x, int y, int flags, void* params)
 
         cv::Mat *image = (Mat*)params;
 
-        if  ( event == EVENT_LBUTTONDOWN )
-        {
-                //int pixelValue = static_cast<int>(image->at<float>(cv::Point(x,y)));
-                cout << "The pixel value at (" << x << ", " << y << ") : " << endl;
-        }
+        // if  ( event == EVENT_LBUTTONDOWN )
+        // {
+        //         //int pixelValue = static_cast<int>(image->at<float>(cv::Point(x,y)));
+        //         cout << "The pixel value at (" << x << ", " << y << ") : " << endl;
+        // }
         // else if  ( event == EVENT_RBUTTONDOWN )
         // {
         //         cout << "Right button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
@@ -42,13 +42,13 @@ void CallBackFunc(int event, int x, int y, int flags, void* params)
         // {
         //         cout << "Middle button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
         // }
-        else if ( event == EVENT_MOUSEMOVE )
-        {
-                std::stringstream text;
-                text << "Pos.(" << x << ", " << y << ")";
-                //cv::putText(image, text.str(), cv::Point(x,y), FONT_HERSHEY_DUPLEX, .5, cv::Scalar(0,255,255), 1,8);
-                cout << "Mouse move over the window - position (" << x << ", " << y << ")" << endl;
-        }
+        // else if ( event == EVENT_MOUSEMOVE )
+        // {
+        //         std::stringstream text;
+        //         text << "Pos.(" << x << ", " << y << ")";
+        //         //cv::putText(image, text.str(), cv::Point(x,y), FONT_HERSHEY_DUPLEX, .5, cv::Scalar(0,255,255), 1,8);
+        //         cout << "Mouse move over the window - position (" << x << ", " << y << ")" << endl;
+        // }
 }
 
 int MenuSelect()
@@ -70,6 +70,8 @@ void KeyOptions()
         std::cout << "'d' Draw RGB & IR chessboard lines"<<std::endl;
         std::cout << "'f' Save RGB & IR frame"<<std::endl;
         std::cout << "'c' Apply to RGB & IR calibration parameters"<<std::endl;
+        std::cout << "'a' Apply to RGB calibration with RGB alignment"<<std::endl;
+        std::cout << "'p' Mat field generate"<<std::endl;
         std::cout << "'other key' Reset to default"<<std::endl;
         std::cout << "'esc' End frame stream"<<std::endl;
         std::cout << "#############################################"<<std::endl;
@@ -215,7 +217,7 @@ int main(int argc, char *argv[])
 
                                         cv::setMouseCallback("depth", CallBackFunc, (void*)&depthmat);///callback for mouse position
 
-                                        cv::resize(rgbmat,rgbmat,Size(512,424),0,0,INTER_AREA); //resize rgbmat from 1920x1080 to 512x424
+                                        cv::resize(rgbmat,rgbmat,Size(512,424),0,0, INTER_AREA); //resize rgbmat from 1920x1080 to 512x424
 
                                         if(key_press == 100){
                                                 cvtColor(irmatBuffer, imgGrayDrawCal, COLOR_BGR2GRAY);
@@ -235,7 +237,19 @@ int main(int argc, char *argv[])
                                                 }
                                         }
 
-                                        if(key_press == 115){      //115 igual a 's' en el teclado (no esta ligado a ascii)
+
+                                        if((key_press == 99) || (key_press == 97)){
+                                                if(remap_flag){
+                                                        remap(depthmat, depthmat, map1x, map1y, 
+                                                                cv::INTER_NEAREST);
+                                                                //INTER_AREA, BORDER_TRANSPARENT, Scalar());
+                                                        remap(rgbmat, rgbmat, map2x, map2y, 
+                                                                cv::INTER_NEAREST);
+                                                                //INTER_AREA, BORDER_TRANSPARENT, Scalar());
+                                                }
+                                        }
+
+                                        if((key_press == 115) || (key_press == 97)){      //115 igual a 's' en el teclado (no esta ligado a ascii)
                                                 for (int x = 0; x < depth->width; x++)
                                                 {
                                                         for (int y = 0; y < depth->height; y++)
@@ -250,16 +264,14 @@ int main(int argc, char *argv[])
                                                         }
                                                 }
                                         }
-
-                                        if(key_press == 99){
-                                                if(remap_flag){
-                                                        remap(rgbmat, rgbmat, map1x, map1y, INTER_LINEAR, BORDER_CONSTANT, Scalar());
-                                                        remap(irmatBuffer, irmatBuffer, map2x, map2y, INTER_LINEAR, BORDER_CONSTANT, Scalar());
-                                                }
+                                        if(key_press == 112){//test save mats for later use
+                                                FileStorage fs_RGB("/home/fernando/Pictures/test_RGB.yml", FileStorage::WRITE);
+                                                fs_RGB << "cameraMatrix" << rgbmat;
+                                                FileStorage fs_IR("/home/fernando/Pictures/test_depth.yml", FileStorage::WRITE);
+                                                fs_IR << "cameraMatrix2" << depthmat;
                                         }
 
-
-                                        if(key_press == 102){      //100 igual a 'd' en el teclado (no esta ligado a ascii)
+                                        if(key_press == 102){      //102 igual a 's' en el teclado (no esta ligado a ascii)
                                                 RGBimgs << RGBdireccion << counter_img_save << ".png";
                                                 IRimgs << IRdireccion << counter_img_save << ".png";
                                                 cv::imwrite(RGBimgs.str().c_str(), rgbmat);
@@ -270,6 +282,9 @@ int main(int argc, char *argv[])
                                                 cout << "#################" << endl;
                                                 cout << "#  Images saved #" << endl;
                                                 cout << "#################" << endl;
+                                                cout << "        " << counter_img_save << endl;
+                                                cout << "#################" << endl;
+                                                key_press = 0;
                                         }
 
                                         cv::imshow("rgb", rgbmat);
@@ -287,11 +302,10 @@ int main(int argc, char *argv[])
                         case 2:
                         {
                                 cv::Size patternsize = cv::Size(9,6);//esquinas interiores del tablero de ajedrez
-                                std::vector<cv::Point3f> RGBcorners3D;//obj
-                                std::vector<cv::Point2f> RGBcorners2D, IRcorners2D;//corners1, corners2 //findChessboardCorners guarda los puntos del tablero aqui
-                                std::vector<std::vector<cv::Point2f>> RGBcoord2D, IRcoord2D;//imagePoints1, imagePoints2 //Ubicacion de las esquinas detectadas en la imagen
-                                std::vector<std::vector<cv::Point3f>> RGBcoord3D;//object_points //Ubicacion real de los puntos 3D
-                                std::vector<std::vector<cv::Point2f>> left_img_points, right_img_points;
+                                std::vector<cv::Point3f> Board3D;//obj guarda las cordenadas reales de los puntos del tablero z es igual a 0 x y son calculados
+                                std::vector<cv::Point2f> RGBcorners2D, IRcorners2D;//corners1, corners2 //findChessboardCorners guarda los puntos encontrados en la imagen por eso son 2d
+                                std::vector<std::vector<cv::Point2f>> points2DRGB, points2DIr;//imagePoints1, imagePoints2 //vector de vectores de los puntos encontrados, un vector para cada imagen y un vector para los puntos
+                                std::vector<std::vector<cv::Point3f>> Boardcoord3D;//object_points //vector de vectores de los puntos reales de cada imagen
 
                                 std::string RGBdireccion = "/home/fernando/Pictures/Calibracion RGB/RGBcal";
                                 std::string IRdireccion = "/home/fernando/Pictures/Calibracion IR/IRcal";
@@ -301,7 +315,9 @@ int main(int argc, char *argv[])
                                 Mat RGBimg, RGBimgGray, IRimg, IRimgGray;
                                 bool RGBfound, IRfound;
 
-                                for (int  i = 0; i < 11; i++){
+                                calcChessboardCorners(patternsize,18,Board3D);//(x,18,x)tamano en milimetros de los cuadrados
+
+                                for (int  i = 0; i < 49; i++){
 
                                         RGBimgs << RGBdireccion << i << ".png";
                                         IRimgs << IRdireccion << i << ".png";
@@ -324,106 +340,163 @@ int main(int argc, char *argv[])
                                                                         CV_CALIB_CB_FILTER_QUADS);
                                         if(RGBfound){
                                                 cornerSubPix(RGBimgGray, RGBcorners2D, Size(11, 11), Size(-1, -1),
-                                                        TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.1 ));
+                                                        TermCriteria(TermCriteria::COUNT + TermCriteria::COUNT, 100, DBL_EPSILON));
                                                 drawChessboardCorners(RGBimg,patternsize,Mat(RGBcorners2D),RGBfound);
                                         }
                                         if(IRfound){
                                                 cornerSubPix(IRimgGray, IRcorners2D, Size(11, 11), Size(-1, -1),
-                                                        TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.1 ));
+                                                        TermCriteria(TermCriteria::COUNT + TermCriteria::COUNT, 100, DBL_EPSILON));
                                                 drawChessboardCorners(IRimg,patternsize,Mat(IRcorners2D),IRfound);
                                         }
 
-                                        calcChessboardCorners(patternsize,18,RGBcorners3D);//(x,18,x)tamano en milimetros de los cuadrados
-
-
                                         if(RGBfound && IRfound){
-                                                RGBcoord2D.push_back(RGBcorners2D);
-                                                IRcoord2D.push_back(IRcorners2D);
-                                                RGBcoord3D.push_back(RGBcorners3D);
+                                                points2DRGB.push_back(RGBcorners2D);
+                                                points2DIr.push_back(IRcorners2D);
+                                                Boardcoord3D.push_back(Board3D);
                                         }
 
-                                        namedWindow(("RGBcal"+std::to_string(i)).c_str(),WINDOW_AUTOSIZE);
-                                        moveWindow(("RGBcal"+std::to_string(i)).c_str(), 40, 30);
-                                        imshow(("RGBcal"+std::to_string(i)).c_str(), RGBimg);
+                                        // namedWindow(("RGBcal"+std::to_string(i)).c_str(),WINDOW_AUTOSIZE);
+                                        // moveWindow(("RGBcal"+std::to_string(i)).c_str(), 40, 30);
+                                        // imshow(("RGBcal"+std::to_string(i)).c_str(), RGBimg);
 
-                                        namedWindow(("IRcal"+std::to_string(i)).c_str(),WINDOW_AUTOSIZE);
-                                        moveWindow(("IRcal"+std::to_string(i)).c_str(), 600, 30);
-                                        imshow(("IRcal"+std::to_string(i)).c_str(), IRimg);
+                                        // namedWindow(("IRcal"+std::to_string(i)).c_str(),WINDOW_AUTOSIZE);
+                                        // moveWindow(("IRcal"+std::to_string(i)).c_str(), 600, 30);
+                                        // imshow(("IRcal"+std::to_string(i)).c_str(), IRimg);
 
-                                        waitKey(1000);
+                                        // waitKey(500);
 
-                                        cvDestroyWindow(("RGBcal"+std::to_string(i)).c_str());
-                                        cvDestroyWindow(("IRcal"+std::to_string(i)).c_str());
+                                        // cvDestroyWindow(("RGBcal"+std::to_string(i)).c_str());
+                                        // cvDestroyWindow(("IRcal"+std::to_string(i)).c_str());
                                 }
+                                cv::destroyAllWindows();
 
-                                for (int i = 0; i < RGBcoord2D.size(); i++) {
-                                        vector< Point2f > v1, v2;
-                                        for (int j = 0; j < RGBcoord2D[i].size(); j++) {
-                                                v1.push_back(Point2f((double)RGBcoord2D[i][j].x, (double)RGBcoord2D[i][j].y));
-                                                v2.push_back(Point2f((double)IRcoord2D[i][j].x, (double)IRcoord2D[i][j].y));
-                                        }
-                                        left_img_points.push_back(v1);
-                                        right_img_points.push_back(v2);
-                                }
+                                Mat cameraMatrix_RGB = Mat::eye(3, 3, CV_64F);
+                                Mat cameraMatrix_IR = Mat::eye(3, 3, CV_64F);
+                                Mat distCoeffs_RGB = Mat::zeros(8, 1, CV_64F);
+                                Mat distCoeffs_IR = Mat::zeros(8, 1, CV_64F);
+                                std::vector<Mat> rvecs_RGB;
+                                std::vector<Mat> rvecs_IR;
+                                std::vector<Mat> tvecs_RGB;
+                                std::vector<Mat> tvecs_IR;
+                           
+                                double rms_RGB = calibrateCamera(Boardcoord3D, points2DRGB, RGBimg.size(), cameraMatrix_RGB,
+                                          distCoeffs_RGB, rvecs_RGB, tvecs_RGB, 
+                                                // CALIB_FIX_PRINCIPAL_POINT +
+                                                // CALIB_FIX_ASPECT_RATIO +
+                                                // CALIB_ZERO_TANGENT_DIST 
+                                                CALIB_RATIONAL_MODEL
+                                                ,TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 50, DBL_EPSILON));
+                                double rms_IR = calibrateCamera(Boardcoord3D, points2DIr, IRimg.size(), cameraMatrix_IR,
+                                          distCoeffs_IR, rvecs_IR, tvecs_IR,
+                                                // CALIB_FIX_PRINCIPAL_POINT +
+                                                // CALIB_FIX_ASPECT_RATIO +
+                                                // CALIB_ZERO_TANGENT_DIST
+                                                CALIB_RATIONAL_MODEL
+                                                ,TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 50, DBL_EPSILON));
+
+                                std::cout << "///////////////////////////" << std::endl;
+                                std::cout << "RGB RMS: " << rms_RGB << std::endl;
+                                std::cout << "RGB Camera matrix: " << cameraMatrix_RGB << std::endl;
+                                std::cout << "RGB Distortion _coefficients: " << distCoeffs_RGB << std::endl;
+                                std::cout << "///////////////////////////" << std::endl;
+                                std::cout << "IR RMS: " << rms_IR << std::endl;
+                                std::cout << "IR Camera matrix: " << cameraMatrix_IR << std::endl;
+                                std::cout << "IR Distortion _coefficients: " << distCoeffs_IR << std::endl;
+                                std::cout << "///////////////////////////" << std::endl;
 
                                 cout << "Starting Calibration" << endl;
-                                Mat K1, K2, R, F, E, D1, D2;
-                                Vec3d T;
+                                Mat cameraMatrixIr, cameraMatrixColor, rotation, fundamental, essential, distortionIr, distortionColor, translation;
 
-                                cout << "Read intrinsics" << endl;
+                                cameraMatrixIr =cameraMatrix_IR;
+                                cameraMatrixColor =cameraMatrix_RGB;
 
-                                stereoCalibrate(RGBcoord3D, left_img_points, right_img_points, K1, D1, K2, D2, IRimg.size(), R, T, E, F);
+                                distortionIr =distCoeffs_IR;
+                                distortionColor =distCoeffs_RGB;
 
-                                cout << "K1:\n" << K1 << endl;// intrinsic matrix
-                                cout << "K2:\n" << K2 << endl;// intrinsic matrix
-                                cout << "D1:\n" << D1 << endl;// vector of distortion coefficients
-                                cout << "D2:\n" << D2 << endl;// vector of distortion coefficients
-                                cout << "R:\n" << R << endl;//Output rotation matrix between the 1st and the 2nd camera coordinate systems.
-                                cout << "T:\n" << T << endl;//Output translation vector between the coordinate systems of the cameras.
-                                cout << "E:\n" << E << endl;//Output essential matrix.
-                                cout << "F:\n" << F << endl;//Output fundamental matrix.
+                                cout << "Read intrinsics"<< endl;
+                                double rms_stereo = stereoCalibrate(Boardcoord3D, points2DIr, points2DRGB, cameraMatrix_IR, distCoeffs_IR, cameraMatrix_RGB, distCoeffs_RGB,
+                                                 RGBimg.size(), rotation, translation, essential, fundamental,
+                                                 TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 100, DBL_EPSILON), 
+                                                 //CV_CALIB_SAME_FOCAL_LENGTH +
+                                                 CV_CALIB_USE_INTRINSIC_GUESS +
+                                                 CV_CALIB_FIX_INTRINSIC);
+
+                                cout << "RMS Stereo:\n" << rms_stereo << endl;// rms
+                                cout << "CameraMatrixIr:\n" << cameraMatrix_IR << endl;// intrinsic matrix
+                                cout << "CameraMatrixColor:\n" << cameraMatrix_RGB << endl;// intrinsic matrix
+                                cout << "DistortionIr:\n" << distCoeffs_IR << endl;// vector of distortion coefficients
+                                cout << "DistortionColor:\n" << distCoeffs_RGB << endl;// vector of distortion coefficients
+                                cout << "Rotation:\n" << rotation << endl;//Output rotation matrix between the 1st and the 2nd camera coordinate systems.
+                                cout << "Translation:\n" << translation << endl;//Output translation vector between the coordinate systems of the cameras.
+                                cout << "Essential:\n" << essential << endl;//Output essential matrix.
+                                cout << "fundamental:\n" << fundamental << endl;//Output fundamental matrix.
                                 cout << "Done Calibration" << endl;
 
                                 cout << "Starting Rectification" << endl;
-                                cv::Mat R1, R2, P1, P2, Q;
-                                stereoRectify(K1, D1, K2, D2, IRimg.size(), R, T, R1, R2, P1, P2, Q);
+                                cv::Mat R1, R2, new_cameraMatrix_IR, new_cameraMatrix_RGB, Q;
+                                stereoRectify(cameraMatrix_IR, distCoeffs_IR, cameraMatrix_RGB, distCoeffs_RGB, IRimg.size(),
+                                                rotation, translation,
+                                                R1, R2, new_cameraMatrix_IR, new_cameraMatrix_RGB, Q
+                                                ,CALIB_ZERO_DISPARITY, 1, IRimg.size()
+                                                );
 
                                 cout << "R1:\n" << R1 << endl;//Rotation Matrix
                                 cout << "R2:\n" << R2 << endl;//Rotation Matrix
-                                cout << "P1:\n" << P1 << endl;//3x4Projection matrix
-                                cout << "P2:\n" << P2 << endl;//3x4Projection matrix
+                                cout << "P1:\n" << new_cameraMatrix_IR << endl;//3x4Projection matrix
+                                cout << "P2:\n" << new_cameraMatrix_RGB << endl;//3x4Projection matrix
                                 cout << "Q:\n" << Q << endl;//4x4 disparity-to-depth mapping matrix
                                 cout << "Done Rectification" << endl;
 
                                 cout << "Starting Undistord" << endl;
-                                cv::initUndistortRectifyMap(K1, D1, R1, P1, IRimg.size(), CV_32FC1, map1x, map1y);
-                                cv::initUndistortRectifyMap(K2, D2, R2, P2, IRimg.size(), CV_32FC1, map2x, map2y);
+                                cv::initUndistortRectifyMap(cameraMatrix_IR, distCoeffs_IR, R1, new_cameraMatrix_IR, IRimg.size(), CV_32FC1, map1x, map1y);
+                                cv::initUndistortRectifyMap(cameraMatrix_RGB, distCoeffs_RGB, R2, new_cameraMatrix_RGB, IRimg.size(), CV_32FC1, map2x, map2y);
+
+                                // cv::initUndistortRectifyMap(cameraMatrix_IR, distCoeffs_IR, cv::Mat(), cameraMatrix_IR, IRimg.size(), CV_32FC1, map1x, map1y);
+                                // cv::initUndistortRectifyMap(cameraMatrix_RGB, distCoeffs_RGB, cv::Mat(), cameraMatrix_RGB, IRimg.size(), CV_32FC1, map2x, map2y);
                                 cout << "Done Undistortion" << endl;
 
                                 cout << "Starting remmaping" << endl;
-                                remap(RGBimg, RGB_out, map1x, map1y, INTER_LINEAR, BORDER_CONSTANT, Scalar());
-                                remap(IRimg, IR_out, map2x, map2y, INTER_LINEAR, BORDER_CONSTANT, Scalar());
+                                remap(IRimg, IR_out, map1x, map1y,
+                                        //,cv::INTER_NEAREST);
+                                        cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
+                                remap(RGBimg, RGB_out, map2x, map2y,
+                                        //cv::INTER_NEAREST);
+                                        cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
                                 cout << "Done remmaping" << endl;
                                 remap_flag = 1;
 
+                                ////////// Draw lines horizontal line///////////
+                                Mat result;
+                                hconcat(RGB_out, IR_out, result);
+
+                                // draw horizontal line
+                                for(int j = 0; j < result.rows; j += 16 ) {
+                                        line(result, Point(0, j), Point(result.cols, j), Scalar(0, 255, 0), 1, 8);
+                                }
+
+                                namedWindow("Result", WINDOW_AUTOSIZE);
+                                moveWindow("Result", 40, 30);
+                                imshow("Result", result);
+                                //////////////////////
 
                                 // namedWindow("RGB original", WINDOW_AUTOSIZE);
-                                // moveWindow("RGB original", 40, 30);
+                                // moveWindow("RGB original", 1000, 10);
                                 // imshow("RGB original", RGBimg);
 
                                 // namedWindow("IR original",WINDOW_AUTOSIZE);
-                                // moveWindow("IR original", 600, 30);
-                                // imshow("IR original", IRimg);
+                                // moveWindow("IR original", 40, 30);
+                                // imshow("IR original",  IRimg);
 
-                                namedWindow("RGB rectification", WINDOW_AUTOSIZE);
-                                moveWindow("RGB rectification", 1000, 10);
-                                imshow("RGB rectification", RGB_out);
+                                // namedWindow("RGB rectification", WINDOW_AUTOSIZE);
+                                // moveWindow("RGB rectification", 1000, 10);
+                                // imshow("RGB rectification", RGB_out);
 
-                                namedWindow("IR rectification",WINDOW_AUTOSIZE);
-                                moveWindow("IR rectification", 40, 30);
-                                imshow("IR rectification", IR_out);
+                                // namedWindow("IR rectification",WINDOW_AUTOSIZE);
+                                // moveWindow("IR rectification", 40, 30);
+                                // imshow("IR rectification", IR_out);
 
                                 waitKey(0);
+                                cv::destroyAllWindows();
                         break;
                         }
                         default:
