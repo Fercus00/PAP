@@ -13,12 +13,18 @@ find_package(OpenCV REQUIRED)
 FIND_PACKAGE(PkgConfig REQUIRED)
 FIND_PACKAGE(freenect2 REQUIRED)
 
+find_package(PCL 1.2 REQUIRED)
+
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${freenect2_INCLUDE_DIRS} )
+
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 # Declare the executable target built from your sources
 add_executable(kinect kinect.cpp)
 
 # Link your application with OpenCV libraries
-target_link_libraries(kinect ${freenect2_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(kinect ${freenect2_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
 

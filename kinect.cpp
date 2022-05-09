@@ -10,11 +10,23 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/io.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/angles.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/console/parse.h>
+#include <pcl/common/common_headers.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
 #include <string> 
 #include <sstream> 
+#include <thread>
 
 const int FALSE = 0;
 const int TRUE = 1;
@@ -54,11 +66,11 @@ void CallBackFunc(int event, int x, int y, int flags, void* params)
 int MenuSelect()
 {
         int menu_item;
-        std::cout << "#################"<<std::endl;
+        std::cout << "#################################"<<std::endl;
         std::cout << "1) Camara output"<<std::endl;
         std::cout << "2) Calibration"<<std::endl;
         std::cout << "3) End program"<<std::endl;
-        std::cout << "#################"<<std::endl;
+        std::cout << "#################################"<<std::endl;
         std::cin >> menu_item;
         return menu_item;
 }
@@ -71,7 +83,7 @@ void KeyOptions()
         std::cout << "'f' Save RGB & IR frame"<<std::endl;
         std::cout << "'c' Apply to RGB & IR calibration parameters"<<std::endl;
         std::cout << "'a' Apply to RGB calibration with RGB alignment"<<std::endl;
-        std::cout << "'p' Mat field generate"<<std::endl;
+        std::cout << "'p' Point cloud"<<std::endl;
         std::cout << "'other key' Reset to default"<<std::endl;
         std::cout << "'esc' End frame stream"<<std::endl;
         std::cout << "#############################################"<<std::endl;
@@ -91,6 +103,7 @@ int main(int argc, char *argv[])
         libfreenect2::Freenect2 freenect2;
         libfreenect2::Freenect2Device *dev = nullptr;
         libfreenect2::PacketPipeline *pipeline = nullptr;
+
          //! [context]
 
          //! [discovery]Buscar e inicializar el sensor
@@ -238,7 +251,7 @@ int main(int argc, char *argv[])
                                         }
 
 
-                                        if((key_press == 99) || (key_press == 97)){
+                                        if((key_press == 99) || (key_press == 97) || key_press == 112){
                                                 if(remap_flag){
                                                         remap(depthmat, depthmat, map1x, map1y, 
                                                                 cv::INTER_NEAREST);
@@ -249,7 +262,7 @@ int main(int argc, char *argv[])
                                                 }
                                         }
 
-                                        if((key_press == 115) || (key_press == 97)){      //115 igual a 's' en el teclado (no esta ligado a ascii)
+                                        if((key_press == 115) || (key_press == 97)||(key_press == 112)){      //115 igual a 's' en el teclado (no esta ligado a ascii)
                                                 for (int x = 0; x < depth->width; x++)
                                                 {
                                                         for (int y = 0; y < depth->height; y++)
@@ -264,11 +277,48 @@ int main(int argc, char *argv[])
                                                         }
                                                 }
                                         }
-                                        if(key_press == 112){//test save mats for later use
-                                                FileStorage fs_RGB("/home/fernando/Pictures/test_RGB.yml", FileStorage::WRITE);
-                                                fs_RGB << "cameraMatrix" << rgbmat;
-                                                FileStorage fs_IR("/home/fernando/Pictures/test_depth.yml", FileStorage::WRITE);
-                                                fs_IR << "cameraMatrix2" << depthmat;
+                                        if(key_press == 112){//create pointcloud with calibration
+                                                const float badPoint = std::numeric_limits<float>::quiet_NaN();
+                                                pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ptCloud(new pcl::PointCloud<pcl::PointXYZRGBA>());
+
+                                                for (int i = 0; i<depthmat.rows; i++)
+                                                {
+                                                        for (int j = 0; j < depthmat.cols; j++)
+                                                        {
+                                                                pcl::PointXYZRGBA point;
+                                                                point.z =  depthmat.at<float>(i,j);
+                                                                point.x = i;
+                                                                point.y = j;
+                                                                uint32_t rgb = (static_cast<uint32_t>(rgbmat.at<cv::Vec4b>(cv::Point(j,i))[2]) << 16
+                                                                 | static_cast<uint32_t>(rgbmat.at<cv::Vec4b>(cv::Point(j,i))[1]) << 8
+                                                                  | static_cast<uint32_t>(rgbmat.at<cv::Vec4b>(cv::Point(j,i))[0]));
+                                                                point.rgb = *reinterpret_cast<float*>(&rgb);
+                                                                point.a = badPoint;
+                                                                ptCloud->points.push_back(point);
+                                                                //std::cout <<" z: "<<point.z<<" x: "<<point.x<<" y: "<<point.y<<" rgb: "<<point.rgb<<" a: "<<point.a<< std::endl;
+                                                        }
+                                                }
+                                                ptCloud->height = rgbmat.cols;
+                                                ptCloud->width = rgbmat.rows;
+                                                ptCloud->is_dense = FALSE;
+                                                
+                                                // boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Cloud Viewer"));
+                                                pcl::visualization::CloudViewer viewer("Cloud Viewer");
+                                                // const std::string cloudName = "3D Image Calibrated";
+                                                // viewer->initCameraParameters();
+                                                // viewer->setBackgroundColor(0, 0, 0);
+                                                // viewer->addPointCloud(ptCloud, cloudName);
+                                                // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloudName);
+                                                // viewer->addCoordinateSystem(1.0);
+                                                // viewer->initCameraParameters();
+                                                viewer.showCloud(ptCloud);
+
+                                                while (!viewer.wasStopped ())
+                                                {
+                                                        //viewer->spinOnce (100);
+                                                }
+                                                //viewer->close();
+                                                key_press = 0;
                                         }
 
                                         if(key_press == 102){      //102 igual a 's' en el teclado (no esta ligado a ascii)
@@ -417,7 +467,7 @@ int main(int argc, char *argv[])
                                 double rms_stereo = stereoCalibrate(Boardcoord3D, points2DIr, points2DRGB, cameraMatrix_IR, distCoeffs_IR, cameraMatrix_RGB, distCoeffs_RGB,
                                                  RGBimg.size(), rotation, translation, essential, fundamental,
                                                  TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 100, DBL_EPSILON), 
-                                                 //CV_CALIB_SAME_FOCAL_LENGTH +
+                                                 //CV_CALIB_FIX_FOCAL_LENGTH +
                                                  CV_CALIB_USE_INTRINSIC_GUESS +
                                                  CV_CALIB_FIX_INTRINSIC);
 
@@ -437,7 +487,7 @@ int main(int argc, char *argv[])
                                 stereoRectify(cameraMatrix_IR, distCoeffs_IR, cameraMatrix_RGB, distCoeffs_RGB, IRimg.size(),
                                                 rotation, translation,
                                                 R1, R2, new_cameraMatrix_IR, new_cameraMatrix_RGB, Q
-                                                ,CALIB_ZERO_DISPARITY, 1, IRimg.size()
+                                                ,CALIB_ZERO_DISPARITY, 0, IRimg.size()
                                                 );
 
                                 cout << "R1:\n" << R1 << endl;//Rotation Matrix
@@ -448,6 +498,10 @@ int main(int argc, char *argv[])
                                 cout << "Done Rectification" << endl;
 
                                 cout << "Starting Undistord" << endl;
+                                cv::Rect rect( 0, 0, 3, 3);
+                                new_cameraMatrix_IR = new_cameraMatrix_IR(rect);
+                                new_cameraMatrix_RGB = new_cameraMatrix_RGB(rect);
+
                                 cv::initUndistortRectifyMap(cameraMatrix_IR, distCoeffs_IR, R1, new_cameraMatrix_IR, IRimg.size(), CV_32FC1, map1x, map1y);
                                 cv::initUndistortRectifyMap(cameraMatrix_RGB, distCoeffs_RGB, R2, new_cameraMatrix_RGB, IRimg.size(), CV_32FC1, map2x, map2y);
 
@@ -457,26 +511,31 @@ int main(int argc, char *argv[])
 
                                 cout << "Starting remmaping" << endl;
                                 remap(IRimg, IR_out, map1x, map1y,
-                                        //,cv::INTER_NEAREST);
                                         cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
                                 remap(RGBimg, RGB_out, map2x, map2y,
-                                        //cv::INTER_NEAREST);
                                         cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
                                 cout << "Done remmaping" << endl;
                                 remap_flag = 1;
 
-                                ////////// Draw lines horizontal line///////////
-                                Mat result;
-                                hconcat(RGB_out, IR_out, result);
+                                ////////// Draw lines horizontal and verticaly///////////
+                                Mat result_h, result_v;
+                                hconcat(RGB_out, IR_out, result_h);
+                                vconcat(RGB_out, IR_out, result_v);
 
                                 // draw horizontal line
-                                for(int j = 0; j < result.rows; j += 16 ) {
-                                        line(result, Point(0, j), Point(result.cols, j), Scalar(0, 255, 0), 1, 8);
+                                for(int j = 0; j < result_h.rows; j += 16 ) {
+                                        line(result_h, Point(0, j), Point(result_h.cols, j), Scalar(0, 255, 0), 1, 8);
+                                }
+                                for(int j = 0; j < result_v.cols; j += 16 ) {
+                                        line(result_v, Point(j, 0), Point(j,result_v.rows), Scalar(0, 255, 0), 1, 8);
                                 }
 
-                                namedWindow("Result", WINDOW_AUTOSIZE);
-                                moveWindow("Result", 40, 30);
-                                imshow("Result", result);
+                                namedWindow("Result_h", WINDOW_AUTOSIZE);
+                                moveWindow("Result_h", 40, 30);
+                                imshow("Result_h", result_h);
+                                namedWindow("Result_v", WINDOW_AUTOSIZE);
+                                moveWindow("Result_v", 40, 30);
+                                imshow("Result_v", result_v);
                                 //////////////////////
 
                                 // namedWindow("RGB original", WINDOW_AUTOSIZE);
@@ -497,6 +556,10 @@ int main(int argc, char *argv[])
 
                                 waitKey(0);
                                 cv::destroyAllWindows();
+                        break;
+                        }
+                        case 3:
+                        {
                         break;
                         }
                         default:
